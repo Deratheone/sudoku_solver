@@ -17,16 +17,26 @@ A C-based Sudoku solver with a graphical user interface that lets you enter puzz
 - Windows operating system
 
 ### Installation
-```cmd
-# Clone or download this project
-cd sudoku_solver
 
-# Compile the project
-make
+**If you are on Windows and do not have `make` installed:**
+- You can use the provided PowerShell script:
+  ```powershell
+  .\build.ps1
+  ```
+- Or, compile directly with GCC:
+  ```powershell
+  gcc -Wall -Wextra -std=c99 -O2 -o sudoku_solver.exe src/main.c src/sudoku.c src/gui.c -lgdi32 -luser32 -lkernel32
+  ```
 
-# Or for quick build:
-make quick
-```
+**If you have `make` installed (Linux/macOS or Windows with MinGW/MSYS2):**
+- Compile the project:
+  ```sh
+  make
+  ```
+- Or for quick build:
+  ```sh
+  make quick
+  ```
 
 ## How to Use
 
