@@ -5,6 +5,43 @@
 #include "gui.h"
 #include "sudoku.h"
 
+// Helper: check if the initial grid is valid (no duplicate numbers in any row, column, or 3x3 box)
+int is_grid_valid(int grid[SIZE][SIZE]) {
+    // Check rows and columns
+    for (int i = 0; i < SIZE; i++) {
+        int row_seen[SIZE+1] = {0};
+        int col_seen[SIZE+1] = {0};
+        for (int j = 0; j < SIZE; j++) {
+            int row_val = grid[i][j];
+            int col_val = grid[j][i];
+            if (row_val) {
+                if (row_seen[row_val]) return 0;
+                row_seen[row_val] = 1;
+            }
+            if (col_val) {
+                if (col_seen[col_val]) return 0;
+                col_seen[col_val] = 1;
+            }
+        }
+    }
+    // Check 3x3 boxes
+    for (int boxRow = 0; boxRow < 3; boxRow++) {
+        for (int boxCol = 0; boxCol < 3; boxCol++) {
+            int seen[SIZE+1] = {0};
+            for (int i = 0; i < 3; i++) {
+                for (int j = 0; j < 3; j++) {
+                    int val = grid[boxRow*3 + i][boxCol*3 + j];
+                    if (val) {
+                        if (seen[val]) return 0;
+                        seen[val] = 1;
+                    }
+                }
+            }
+        }
+    }
+    return 1;
+}
+
 // Window procedure - handles all messages sent to our window
 LRESULT CALLBACK WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam) {
     switch (uMsg) {
@@ -22,6 +59,26 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam) 
                     int grid[SIZE][SIZE];
                     GetGridFromGUI(hwnd, grid);
                     
+                    // Check if the grid is completely empty
+                    int isEmpty = 1;
+                    for (int i = 0; i < SIZE; i++) {
+                        for (int j = 0; j < SIZE; j++) {
+                            if (grid[i][j] != 0) {
+                                isEmpty = 0;
+                                break;
+                            }
+                        }
+                        if (!isEmpty) break;
+                    }
+                    
+                    if (isEmpty) {
+                        MessageBox(hwnd, "Please enter at least one number in the grid before solving!", "Grid is empty", MB_OK | MB_ICONWARNING);
+                        break;
+                    }
+                    if (!is_grid_valid(grid)) {
+                        MessageBox(hwnd, "The grid has duplicate numbers in a row, column, or box. Please fix your input.", "Invalid Sudoku Input", MB_OK | MB_ICONERROR);
+                        break;
+                    }
                     // Try to solve the sudoku
                     if (solve_sudoku(grid)) {
                         // Solution found - display it in the GUI
@@ -150,6 +207,7 @@ void CreateButtons(HWND hwnd) {
         hwnd, (HMENU)2998,
         GetModuleHandle(NULL), NULL
     );
+    (void)buttonPanel; // Suppress unused variable warning
       // Solve button
     HWND solveBtn = CreateWindowEx(
         WS_EX_STATICEDGE,
