@@ -1,6 +1,6 @@
 # Sudoku Solver with GUI and Game Mode
 
-A C-based Sudoku solver with a graphical user interface that features both puzzle solving and interactive gameplay with puzzle generation.
+A comprehensive C-based Sudoku application with a graphical user interface featuring both a powerful puzzle solver and an interactive game mode. This dual-function application allows users to solve existing puzzles or play new randomly generated ones with hints and solution checking.
 
 ## Features
 
@@ -16,6 +16,27 @@ A C-based Sudoku solver with a graphical user interface that features both puzzl
 - **Solution Checking**: Verify if your completed puzzle is correct
 - **Hint System**: Get up to 3 hints per puzzle to help you solve
 - **Difficulty Levels**: Medium difficulty puzzles with proper number of clues
+
+## Game Mode Features
+
+The Game tab provides an interactive Sudoku experience:
+
+### Puzzle Generation
+- Automatic generation of valid Sudoku puzzles with unique solutions
+- Each puzzle is guaranteed to be solvable using logic (no guessing required)
+- Three difficulty levels (easy, medium, hard) with different numbers of clues
+
+### Gameplay Features
+- Real-time input validation prevents obvious mistakes
+- Built-in hint system (limited to 3 hints per puzzle)
+- Solution checking compares your answer with the known solution
+- Clear visual feedback on correct/incorrect solutions
+
+### Implementation Details
+- Puzzle generation uses a diagonal-first approach for efficiency
+- Difficulty is controlled by the number of clues removed
+- The hint system strategically reveals cells to guide players
+- All puzzles have exactly one solution to ensure fairness
 
 ## How to Build
 
@@ -78,8 +99,9 @@ _ _ _ | 4 1 9 | _ _ 5
 _ _ _ | _ 8 _ | _ 7 9
 ```
 
-## Algorithm
+## Algorithms
 
+### Solver Algorithm
 Uses **backtracking** algorithm:
 1. Find empty cell
 2. Try numbers 1-9
@@ -87,31 +109,60 @@ Uses **backtracking** algorithm:
 4. If valid, recursively solve rest
 5. If no solution, backtrack and try next number
 
+### Puzzle Generation Algorithm
+The Game tab uses an advanced puzzle generation approach:
+1. Fill diagonal 3x3 boxes first (these don't affect each other)
+2. Solve the rest of the grid using the solver algorithm
+3. Remove numbers strategically to create a puzzle with a unique solution
+4. Different difficulty levels remove different numbers of clues
+
 ## Project Structure
 
 ```
 sudoku_solver/
 ├── src/
 │   ├── main.c     # Entry point and window creation
-│   ├── sudoku.c   # Solving algorithm implementation
+│   ├── sudoku.c   # Solving and puzzle generation algorithms
 │   ├── sudoku.h   # Sudoku function declarations
-│   ├── gui.c      # GUI implementation
-│   └── gui.h      # GUI function declarations
+│   ├── gui.c      # GUI implementation (solver & game tabs)
+│   └── gui.h      # GUI function declarations & constants
 ├── Makefile       # Build configuration
+├── build.ps1      # PowerShell build script for Windows
 └── README.md      # This file
 ```
 
 ## Technical Details
 
 - **Language**: C (C99 standard)
-- **GUI**: Windows API (native)
-- **Algorithm**: Backtracking with constraint checking
+- **GUI**: Windows API (native) with Common Controls
+- **Solver Algorithm**: Backtracking with constraint checking
+- **Generation Algorithm**: Diagonal-first with unique solution guarantee
+- **Tab Interface**: Windows Common Controls Tab Control
 - **Time Complexity**: O(9^n) worst case, typically much faster
 - **Space Complexity**: O(1) excluding recursion stack
+- **Hint System**: Limited hints (3 per puzzle) based on known solution
+
+## Screenshots
+
+### Solver Tab
+The Solver tab allows you to input and solve any valid Sudoku puzzle:
+![Solver Tab](screenshots/solver_tab.png)
+
+### Game Tab
+The Game tab lets you play randomly generated puzzles:
+![Game Tab](screenshots/game_tab.png)
+
+> Note: To see these screenshots, save sample images of the application to a `screenshots` folder in the project directory.
 
 ## Contributing
 
-Feel free to submit issues and enhancement requests!
+Feel free to submit issues and enhancement requests! Some ideas for future improvements:
+
+- Additional difficulty levels in Game mode
+- Puzzle saving/loading functionality
+- Timer for gameplay
+- Score tracking and statistics
+- Support for additional operating systems
 
 ## License
 
