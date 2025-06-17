@@ -3,6 +3,7 @@
 
 #include <windows.h>
 #include "sudoku.h"
+#include <commctrl.h>
 
 // Window dimensions and layout constants
 #define WINDOW_WIDTH 650
@@ -21,6 +22,19 @@
 // Base ID for sudoku cells (each cell gets unique ID: ID_CELL_BASE + row*9 + col)
 #define ID_CELL_BASE 2000
 
+#define TAB_SOLVER 0
+#define TAB_GAME 1
+#define MAX_HINTS 3
+
+// Tab and control IDs
+#define ID_TAB 5000
+#define ID_GRID 5001
+#define ID_BUTTONS 5002
+#define ID_HINTS 5003
+#define ID_CHECK 5004
+#define ID_GENERATE 5005
+#define ID_GAME_TAB 5006
+
 // Function declarations for GUI management
 LRESULT CALLBACK WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam);
 void CreateSudokuGrid(HWND hwnd);
@@ -29,5 +43,12 @@ void GetGridFromGUI(HWND hwnd, int grid[SIZE][SIZE]);
 void SetGridToGUI(HWND hwnd, int grid[SIZE][SIZE]);
 void ClearGrid(HWND hwnd);
 void LoadExamplePuzzle(HWND hwnd);
+void CreateTabControl(HWND hwnd);
+void ShowSolverTab(HWND hwnd, BOOL show);
+void ShowGameTab(HWND hwnd, BOOL show);
+void CreateGameTab(HWND hwnd);
+void GenerateSudokuPuzzle(int puzzle[SIZE][SIZE], int solution[SIZE][SIZE]);
+void GiveHint(HWND hwnd);
+void CheckUserSolution(HWND hwnd);
 
 #endif

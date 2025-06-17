@@ -4,7 +4,7 @@
 # Compiler settings
 CC = gcc
 CFLAGS = -Wall -Wextra -std=c99 -O2
-LIBS = -lgdi32 -luser32 -lkernel32
+LIBS = -lgdi32 -luser32 -lkernel32 -lcomctl32
 
 # Directories and files
 SRCDIR = src

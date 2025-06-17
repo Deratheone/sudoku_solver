@@ -1,56 +1,54 @@
 #include <windows.h>
+#include <commctrl.h>
 #include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
+#include <time.h>
 #include "gui.h"
 #include "sudoku.h"
+#pragma comment(lib, "comctl32.lib")
 
-// Helper: check if the initial grid is valid (no duplicate numbers in any row, column, or 3x3 box)
-int is_grid_valid(int grid[SIZE][SIZE]) {
-    // Check rows and columns
-    for (int i = 0; i < SIZE; i++) {
-        int row_seen[SIZE+1] = {0};
-        int col_seen[SIZE+1] = {0};
-        for (int j = 0; j < SIZE; j++) {
-            int row_val = grid[i][j];
-            int col_val = grid[j][i];
-            if (row_val) {
-                if (row_seen[row_val]) return 0;
-                row_seen[row_val] = 1;
-            }
-            if (col_val) {
-                if (col_seen[col_val]) return 0;
-                col_seen[col_val] = 1;
-            }
-        }
-    }
-    // Check 3x3 boxes
-    for (int boxRow = 0; boxRow < 3; boxRow++) {
-        for (int boxCol = 0; boxCol < 3; boxCol++) {
-            int seen[SIZE+1] = {0};
-            for (int i = 0; i < 3; i++) {
-                for (int j = 0; j < 3; j++) {
-                    int val = grid[boxRow*3 + i][boxCol*3 + j];
-                    if (val) {
-                        if (seen[val]) return 0;
-                        seen[val] = 1;
-                    }
-                }
-            }
-        }
-    }
-    return 1;
-}
+// Global for tracking hints left in game mode
+static int hints_left = MAX_HINTS;
+// Global for storing current puzzle solution in game mode
+static int current_solution[SIZE][SIZE];
+static int has_puzzle = 0;
 
 // Window procedure - handles all messages sent to our window
 LRESULT CALLBACK WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam) {
-    switch (uMsg) {
-        case WM_CREATE:
-            // Window is being created - set up our controls
+    static HWND hTab = NULL;
+    switch (uMsg) {        case WM_CREATE: {
+            // Initialize common controls
+            InitCommonControls();
+            
+            // Create tab control
+            hTab = CreateWindowEx(0, WC_TABCONTROLA, "", WS_CHILD | WS_CLIPSIBLINGS | WS_VISIBLE,
+                0, 0, WINDOW_WIDTH, WINDOW_HEIGHT, hwnd, (HMENU)ID_TAB, GetModuleHandle(NULL), NULL);
+            
+            // Add tabs
+            TCITEMA tie;
+            tie.mask = TCIF_TEXT;
+            tie.pszText = "Solver";
+            TabCtrl_InsertItem(hTab, TAB_SOLVER, &tie);
+            tie.pszText = "Game";
+            TabCtrl_InsertItem(hTab, TAB_GAME, &tie);
+            
+            // Create the UI elements
             CreateSudokuGrid(hwnd);
             CreateButtons(hwnd);
-            break;
+            CreateGameTab(hwnd);
             
+            ShowSolverTab(hwnd, TRUE);
+            ShowGameTab(hwnd, FALSE);
+            break;
+        }
+        case WM_NOTIFY: {
+            LPNMHDR pnmh = (LPNMHDR)lParam;
+            if (pnmh->code == TCN_SELCHANGE && pnmh->hwndFrom == GetDlgItem(hwnd, ID_TAB)) {
+                int sel = TabCtrl_GetCurSel(pnmh->hwndFrom);
+                ShowSolverTab(hwnd, sel == TAB_SOLVER);
+                ShowGameTab(hwnd, sel == TAB_GAME);
+            }
+            break;
+        }
         case WM_COMMAND:
             // A button was clicked or control was activated
             switch (LOWORD(wParam)) {
@@ -91,15 +89,96 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam) 
                                   "Error", MB_OK | MB_ICONERROR);
                     }
                     break;
-                }
-                case ID_CLEAR_BUTTON:
+                }                case ID_CLEAR_BUTTON:
                     // Clear all cells in the grid
                     ClearGrid(hwnd);
                     break;
                       case ID_EXAMPLE_BUTTON:
                     // Load an example Sudoku puzzle
                     LoadExamplePuzzle(hwnd);
+                    break;                case ID_GENERATE: {
+                    // Generate a new puzzle
+                    static int puzzle[SIZE][SIZE];
+                    GenerateSudokuPuzzle(puzzle, current_solution);
+                    SetGridToGUI(hwnd, puzzle);
+                    hints_left = MAX_HINTS; // Reset hints
+                    has_puzzle = 1; // Mark that we have a puzzle with known solution
+                    MessageBox(hwnd, "New puzzle generated! Try to solve it.", "New Puzzle", MB_OK | MB_ICONINFORMATION);
                     break;
+                }                case ID_CHECK: {
+                    // Check if current solution is correct
+                    int grid[SIZE][SIZE];
+                    GetGridFromGUI(hwnd, grid);
+                    
+                    // Check if grid is complete
+                    if (!is_grid_complete(grid)) {
+                        MessageBox(hwnd, "Please fill in all cells before checking the solution.", "Incomplete", MB_OK | MB_ICONWARNING);
+                        break;
+                    }
+                    
+                    // If we have a generated puzzle, compare with known solution
+                    if (has_puzzle) {
+                        int matches = 1;
+                        for (int i = 0; i < SIZE && matches; i++) {
+                            for (int j = 0; j < SIZE && matches; j++) {
+                                if (grid[i][j] != current_solution[i][j]) {
+                                    matches = 0;
+                                }
+                            }
+                        }
+                        
+                        if (matches) {
+                            MessageBox(hwnd, "Congratulations! Your solution is perfectly correct!", "Perfect Solution", MB_OK | MB_ICONEXCLAMATION);
+                        } else {
+                            MessageBox(hwnd, "Your solution doesn't match the intended answer. Keep trying!", "Try Again", MB_OK | MB_ICONERROR);
+                        }
+                    } else {
+                        // Check if solution is valid (fallback for user-entered puzzles)
+                        if (is_grid_valid(grid)) {
+                            MessageBox(hwnd, "Your solution follows all Sudoku rules!", "Valid Solution", MB_OK | MB_ICONEXCLAMATION);
+                        } else {
+                            MessageBox(hwnd, "Your solution has errors. Keep trying!", "Invalid Solution", MB_OK | MB_ICONERROR);
+                        }
+                    }
+                    break;
+                }case ID_HINTS: {
+                    // Provide a hint
+                    if (hints_left <= 0) {
+                        MessageBox(hwnd, "No more hints available for this puzzle.", "No Hints", MB_OK | MB_ICONINFORMATION);
+                        break;
+                    }
+                    
+                    if (!has_puzzle) {
+                        MessageBox(hwnd, "Please generate a puzzle first before asking for hints.", "No Puzzle", MB_OK | MB_ICONWARNING);
+                        break;
+                    }
+                    
+                    // Get current grid and find an empty cell to fill
+                    int grid[SIZE][SIZE];
+                    GetGridFromGUI(hwnd, grid);
+                    
+                    // Find first empty cell and fill it with the correct solution
+                    int found = 0;
+                    for (int i = 0; i < SIZE && !found; i++) {
+                        for (int j = 0; j < SIZE && !found; j++) {
+                            if (grid[i][j] == 0) {
+                                grid[i][j] = current_solution[i][j];
+                                found = 1;
+                            }
+                        }
+                    }
+                    
+                    if (found) {
+                        SetGridToGUI(hwnd, grid);
+                        hints_left--;
+                        char message[100];
+                        sprintf(message, "Hint provided! %d hints remaining.", hints_left);
+                        MessageBox(hwnd, message, "Hint", MB_OK | MB_ICONINFORMATION);
+                    } else {
+                        MessageBox(hwnd, "The puzzle appears to be complete!", "No Hints Needed", MB_OK | MB_ICONINFORMATION);
+                    }
+                    break;
+                }
             }
             break;
             
@@ -346,4 +425,112 @@ void LoadExamplePuzzle(HWND hwnd) {
     // Notify user
     MessageBox(hwnd, "Example puzzle loaded!\nClick 'Solve Puzzle' to see the solution.", 
               "Example Loaded", MB_OK | MB_ICONINFORMATION);
+}
+
+void ShowSolverTab(HWND hwnd, BOOL show) {
+    // Show/hide solver tab controls
+    ShowWindow(GetDlgItem(hwnd, ID_SOLVE_BUTTON), show ? SW_SHOW : SW_HIDE);
+    ShowWindow(GetDlgItem(hwnd, ID_CLEAR_BUTTON), show ? SW_SHOW : SW_HIDE);
+    ShowWindow(GetDlgItem(hwnd, ID_EXAMPLE_BUTTON), show ? SW_SHOW : SW_HIDE);
+}
+
+void ShowGameTab(HWND hwnd, BOOL show) {
+    // Show/hide game tab controls
+    ShowWindow(GetDlgItem(hwnd, ID_GENERATE), show ? SW_SHOW : SW_HIDE);
+    ShowWindow(GetDlgItem(hwnd, ID_CHECK), show ? SW_SHOW : SW_HIDE);
+    ShowWindow(GetDlgItem(hwnd, ID_HINTS), show ? SW_SHOW : SW_HIDE);
+}
+
+void CreateGameTab(HWND hwnd) {
+    // Create a nice font for buttons
+    HFONT buttonFont = CreateFont(18, 0, 0, 0, FW_BOLD, FALSE, FALSE, FALSE, 
+                                DEFAULT_CHARSET, OUT_OUTLINE_PRECIS, CLIP_DEFAULT_PRECIS, 
+                                CLEARTYPE_QUALITY, DEFAULT_PITCH | FF_SWISS, "Segoe UI");
+    
+    // Use the same positioning logic as in CreateButtons
+    int gridWidth = 3 * (3 * CELL_SIZE + 2 * CELL_SPACING + BOX_SPACING);
+    int gridHeight = gridWidth;
+    int buttonY = GRID_START_Y + gridHeight + 40;
+    int buttonWidth = 130;
+    int buttonHeight = 40;
+    int buttonSpacing = 20;
+    int totalButtonWidth = 3 * buttonWidth + 2 * buttonSpacing;
+    int startX = (WINDOW_WIDTH - totalButtonWidth) / 2;
+    
+    // Create a panel behind the buttons
+    HWND buttonPanel = CreateWindowEx(
+        WS_EX_STATICEDGE,
+        "STATIC", "",
+        WS_CHILD | WS_VISIBLE | SS_ETCHEDFRAME,
+        startX - 20, buttonY - 10, 
+        totalButtonWidth + 40, buttonHeight + 20,
+        hwnd, (HMENU)ID_GAME_TAB,
+        GetModuleHandle(NULL), NULL
+    );
+    (void)buttonPanel; // Suppress unused variable warning
+    
+    // Generate Puzzle button
+    HWND generateBtn = CreateWindowEx(
+        WS_EX_STATICEDGE,
+        "BUTTON", "Generate Puzzle",
+        WS_CHILD | WS_VISIBLE | BS_PUSHBUTTON | BS_FLAT,
+        startX, buttonY, buttonWidth, buttonHeight,
+        hwnd, (HMENU)ID_GENERATE, GetModuleHandle(NULL), NULL);
+    SendMessage(generateBtn, WM_SETFONT, (WPARAM)buttonFont, MAKELPARAM(TRUE, 0));
+    
+    // Check Solution button
+    HWND checkBtn = CreateWindowEx(
+        WS_EX_STATICEDGE,
+        "BUTTON", "Check Solution",
+        WS_CHILD | WS_VISIBLE | BS_PUSHBUTTON | BS_FLAT,
+        startX + buttonWidth + buttonSpacing, buttonY, buttonWidth, buttonHeight,
+        hwnd, (HMENU)ID_CHECK, GetModuleHandle(NULL), NULL);
+    SendMessage(checkBtn, WM_SETFONT, (WPARAM)buttonFont, MAKELPARAM(TRUE, 0));
+    
+    // Get Hint button
+    HWND hintBtn = CreateWindowEx(
+        WS_EX_STATICEDGE,
+        "BUTTON", "Get Hint",
+        WS_CHILD | WS_VISIBLE | BS_PUSHBUTTON | BS_FLAT,
+        startX + 2 * (buttonWidth + buttonSpacing), buttonY, buttonWidth, buttonHeight,
+        hwnd, (HMENU)ID_HINTS, GetModuleHandle(NULL), NULL);
+    SendMessage(hintBtn, WM_SETFONT, (WPARAM)buttonFont, MAKELPARAM(TRUE, 0));
+    
+    // Initially hide game tab controls
+    ShowGameTab(hwnd, FALSE);
+}
+
+void GenerateSudokuPuzzle(int puzzle[SIZE][SIZE], int solution[SIZE][SIZE]) {
+    // Initialize random seed
+    srand((unsigned int)time(NULL));
+    
+    // Generate a complete valid sudoku solution
+    if (generate_complete_sudoku(solution)) {
+        // Create puzzle by removing numbers (medium difficulty = 1)
+        create_puzzle_from_solution(solution, puzzle, 1);
+    } else {
+        // Fallback to example puzzle if generation fails
+        int example[SIZE][SIZE] = {
+            {5, 3, 0, 0, 7, 0, 0, 0, 0},
+            {6, 0, 0, 1, 9, 5, 0, 0, 0},
+            {0, 9, 8, 0, 0, 0, 0, 6, 0},
+            {8, 0, 0, 0, 6, 0, 0, 0, 3},
+            {4, 0, 0, 8, 0, 3, 0, 0, 1},
+            {7, 0, 0, 0, 2, 0, 0, 0, 6},
+            {0, 6, 0, 0, 0, 0, 2, 8, 0},
+            {0, 0, 0, 4, 1, 9, 0, 0, 5},
+            {0, 0, 0, 0, 8, 0, 0, 7, 9}
+        };
+        
+        // Copy example to puzzle
+        for (int i = 0; i < SIZE; i++) {
+            for (int j = 0; j < SIZE; j++) {
+                puzzle[i][j] = example[i][j];
+                solution[i][j] = example[i][j];
+            }
+        }
+        
+        // Solve to get the complete solution
+        solve_sudoku(solution);
+    }
 }

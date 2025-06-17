@@ -2,7 +2,7 @@
 # This script makes it easy to build the project without using make
 
 Write-Host "===== Building Sudoku Solver =====" -ForegroundColor Green
-gcc -Wall -Wextra -std=c99 -O2 -o sudoku_solver.exe src/main.c src/sudoku.c src/gui.c -lgdi32 -luser32 -lkernel32
+gcc -Wall -Wextra -std=c99 -O2 -o sudoku_solver.exe src/main.c src/sudoku.c src/gui.c -lgdi32 -luser32 -lkernel32 -lcomctl32
 
 if ($LASTEXITCODE -eq 0) {
     Write-Host "===== Build Successful! =====" -ForegroundColor Green
