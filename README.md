@@ -152,7 +152,7 @@ The Solver tab allows you to input and solve any valid Sudoku puzzle:
 The Game tab lets you play randomly generated puzzles:
 ![Game Tab](screenshots/game_tab.png)
 
-> Note: To see these screenshots, save sample images of the application to a `screenshots` folder in the project directory.
+
 
 ## Contributing
 
